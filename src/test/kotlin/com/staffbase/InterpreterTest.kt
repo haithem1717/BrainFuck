@@ -1,40 +1,80 @@
 package com.staffbase
 
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Test
-import java.util.Scanner
+import org.junit.jupiter.api.assertThrows
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.CsvSource
+import org.junit.jupiter.params.provider.ValueSource
+import kotlin.test.assertEquals
+import kotlin.test.expect
 
+class TestConsole(private val input: MutableList<Int>) : Console {
+    var output = ""
+        private set
 
-internal class InterpreterTest {
+    constructor(input: String = "") : this(input.map(Char::toInt).toMutableList())
+
+    override fun writeCharacter(character: Int) {
+        output += character.toChar()
+    }
+
+    override fun readCharacter(): Int {
+        return if (input.isEmpty()) 0 else input.removeAt(0)
+    }
+}
+
+class InterpreterTest {
     @Test
     fun `can crawl through array & increase values`() {
-        val values = IntArray(10)
-        fun interpret(commands: String): Sequence<Int> {
-            var count = 0
-            commands.forEach {
-                when (it) {
-                    Instruction.IncrementValue.character -> values[count] += 1
-                    Instruction.DecrementValue.character -> values[count] -= 1
-                    Instruction.MoveRight.character -> count += 1
-                    Instruction.MoveLeft.character -> count -= 1
-                }
-            }
-             return values.asSequence().filter { element ->(element != 0)  }
-        }
-        val commands = "++>+>+++<+<-"
-        val testSequence = sequenceOf(1,2,3)
-        assertEquals(testSequence.toList(), interpret(commands).toList())
+        val tc = TestConsole()
+        val script = "++>+>+++<+<-"
+        assertEquals(listOf(1, 2, 3), interpret(script, tc))
+        assertEquals(expected = "", actual = tc.output)
+    }
+
+    @ParameterizedTest
+    @CsvSource(
+        "11, 2",
+        "45, 9",
+        "55, 10",
+        "99, 18"
+    )
+    fun `add two entered digits`(input: String, output: String) {
+        val tc = TestConsole(input = input)
+        val script = """
+            ++++++
+            [>++++++++<-]
+            >>,>,<<
+            [>->-<<-]
+            >>
+            [<+>-]
+            >++++++++++<<[->+>-[>+>>]>[+[-<+>]>+>>]<<<<<<]>>[-]>>>++++++++++<[->-[>+>>]>[+[-
+            <+>]>+>>]<<<<<]>[-]>>[>++++++[-<++++++++>]<.<<+>+>[-]]<[<[->-<]++++++[->++++++++
+            <]>.[-]]<<++++++[-<++++++++>]<.[-]<<[-<+>]
+        """.trimIndent()
+        interpret(script, tc)
+        assertEquals(expected = output, actual = tc.output)
     }
 
     @Test
     fun `can perform output`() {
-        val values = arrayOf(97,98,99)
-        val commands = "."
-        commands.forEach {
-            when (it){
-                    Instruction.Output.character -> println(commands[0])
-            }
+        val tc = TestConsole(input = "hello")
+        val script = ",[.,]"
+        val memory = interpret(script, tc)
+        assertEquals(expected = listOf(), actual = memory)
+        assertEquals(expected = "hello", actual = tc.output)
+    }
+    @Test
+    fun `check the loop`(){
+        val temporary = ">+[++]"
+
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["]", "["])
+    fun `broken loops should be detected correctly`(script: String) {
+        assertThrows<BrokenLoopException> {
+            findLoopIndexes(script)
         }
-        assertEquals(97, values[0])
     }
 }
